@@ -46,7 +46,7 @@ aws rds create-db-instance \
     --auto-minor-version-upgrade \
     --publicly-accessible \
     --master-username invoicer \
-    --master-user-password "$dbpass" \
+    --master-user-password "S0m3thlngr4nd0m" \
     --no-multi-az > tmp/$identifier/rds.json || fail
 echo "RDS Postgres database is being created. username=invoicer; password='$dbpass'"
 
@@ -81,29 +81,32 @@ dockerstack="$(aws elasticbeanstalk list-available-solution-stacks | \
 
 # Create the EB API environment
 sed "s/POSTGRESPASSREPLACEME/$dbpass/" ebs-options.json > tmp/$identifier/ebs-options.json || fail
-sed -i "s/POSTGRESHOSTREPLACEME/$dbhost/" tmp/$identifier/ebs-options.json || fail
+sed -i ".json" "s/POSTGRESHOSTREPLACEME/$dbhost/"  tmp/$identifier/ebs-options.json || fail
 aws elasticbeanstalk create-environment \
     --application-name $identifier \
     --environment-name $identifier-invoicer-api \
     --description "Invoicer API environment" \
     --tags "Key=Owner,Value=$(whoami)" \
     --solution-stack-name "$dockerstack" \
-    --option-settings file://tmp/$identifier/ebs-options.json \
+    --option-settings file:///Users/yonoel/Desktop/mac-book/study/invoicer-chapter2/tmp/$identifier/ebs-options.json \
     --tier "Name=WebServer,Type=Standard,Version=''" > tmp/$identifier/ebcreateapienv.json || fail
 apieid=$(jq -r '.EnvironmentId' tmp/$identifier/ebcreateapienv.json)
 echo "API environment $apieid is being created"
 
 # grab the instance ID of the API environment, then its security group, and add that to the RDS security group
+sleep 60
 while true;
 do
-    aws elasticbeanstalk describe-environment-resources --environment-id $apieid > tmp/$identifier/ebapidesc.json || fail
+# 要过一活才能查
+    aws elasticbeanstalk describe-environment-resources --environment-name $identifier-invoicer-api > tmp/$identifier/ebapidesc.json || fail
     ec2id=$(jq -r '.EnvironmentResources.Instances[0].Id' tmp/$identifier/ebapidesc.json)
     if [ "$ec2id" != "null" ]; then break; fi
     echo -n '.'
     sleep 10
 done
 echo
-aws ec2 describe-instances --instance-ids $ec2id > tmp/$identifier/${ec2id}.json || fail
+# 这里挂了？？？
+aws ec2 describe-instance --instance-ids $ec2id > tmp/$identifier/${ec2id}.json || fail
 sgid=$(jq -r '.Reservations[0].Instances[0].SecurityGroups[0].GroupId' tmp/$identifier/${ec2id}.json)
 aws ec2 authorize-security-group-ingress --group-id $dbsg --source-group $sgid --protocol tcp --port 5432 || fail
 echo "API security group $sgid authorized to connect to database security group $dbsg"

@@ -1,0 +1,10 @@
+{
+    "InstanceProfile": {
+        "Path": "/",
+        "InstanceProfileName": "dev-Instance-Profile",
+        "InstanceProfileId": "AIPAYMJCAO2HIADMEPRHQ",
+        "Arn": "arn:aws:iam::576133822094:instance-profile/dev-Instance-Profile",
+        "CreateDate": "2021-05-31T13:42:19Z",
+        "Roles": []
+    }
+}
